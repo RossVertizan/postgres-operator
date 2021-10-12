@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/go-test/deep"
 	"reflect"
 	"regexp"
 	"strings"
@@ -368,6 +369,27 @@ func (c *Cluster) compareStatefulSetWith(statefulSet *appsv1.StatefulSet) *compa
 	reasons := make([]string, 0)
 	var match, needsRollUpdate, needsReplace bool
 
+	// Add a whole block of diagnostics
+	if diff := deep.Equal(c.Statefulset.Annotations, statefulSet.Annotations); diff != nil {
+		reasons = append(reasons, "Annotations: ")
+		reasons = append(reasons, diff...)
+		reasons = append(reasons, string(len(statefulSet.Annotations)))
+		reasons = append(reasons, string(len(c.Statefulset.Annotations)))
+		reasons = append(reasons, c.Statefulset.Annotations["autopilot.gke.io/resource-adjustment"])
+	}
+	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.SecurityContext, statefulSet.Spec.Template.Spec.SecurityContext); diff != nil {
+		reasons = append(reasons, "Spec.Template.Spec.SecurityContext: ")
+		reasons = append(reasons, diff...)
+	}
+	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.Containers[0].Resources, statefulSet.Spec.Template.Spec.Containers[0].Resources); diff != nil {
+		reasons = append(reasons, "Spec.Template.Spec.Containers[0].Resources: ")
+		reasons = append(reasons, diff...)
+	}
+	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.Containers[0].SecurityContext, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext); diff != nil {
+		reasons = append(reasons, "Spec.Template.Spec.Containers[0].SecurityContext: ")
+		reasons = append(reasons, diff...)
+	}
+
 	match = true
 	//TODO: improve me
 	if *c.Statefulset.Spec.Replicas != *statefulSet.Spec.Replicas {
@@ -375,9 +397,23 @@ func (c *Cluster) compareStatefulSetWith(statefulSet *appsv1.StatefulSet) *compa
 		reasons = append(reasons, "new statefulset's number of replicas does not match the current one")
 	}
 	if !reflect.DeepEqual(c.Statefulset.Annotations, statefulSet.Annotations) {
-		match = false
-		needsReplace = true
-		reasons = append(reasons, "new statefulset's annotations do not match the current one")
+		// RA MODIFIED
+		// Ignore the case where the new statefulSet has a nil map and the existing one only has an 'autopilot.gke.io/resource-adjustment' key.
+		// All a bit hokey, should negate the logic, rather than having empty if clause
+		if len(statefulSet.Annotations) == 0 && len(c.Statefulset.Annotations) == 1 {
+			if val, ok := c.Statefulset.Annotations["autopilot.gke.io/resource-adjustment"]; ok {
+				// Find a way to consume val
+				fmt.Println(val)
+			} else {
+				match = false
+				needsReplace = true
+				reasons = append(reasons, "new statefulset's annotations do not match the current one")
+			}
+		} else {
+			match = false
+			needsReplace = true
+			reasons = append(reasons, "new statefulset's annotations do not match the current one")
+		}
 	}
 
 	needsRollUpdate, reasons = c.compareContainers("initContainers", c.Statefulset.Spec.Template.Spec.InitContainers, statefulSet.Spec.Template.Spec.InitContainers, needsRollUpdate, reasons)
@@ -433,10 +469,16 @@ func (c *Cluster) compareStatefulSetWith(statefulSet *appsv1.StatefulSet) *compa
 		reasons = append(reasons, "new statefulset's pod template metadata annotations does not match the current one")
 	}
 	if !reflect.DeepEqual(c.Statefulset.Spec.Template.Spec.SecurityContext, statefulSet.Spec.Template.Spec.SecurityContext) {
-		match = false
-		needsReplace = true
-		needsRollUpdate = true
-		reasons = append(reasons, "new statefulset's pod template security context in spec does not match the current one")
+		// RA MODIFIED
+		// Ignore the case where the new statefulSet has a nil pointer and the existing one only has an 'SeccompProfile' key.
+		// All a bit hokey, should negate the logic, rather than having empty if clause
+		if statefulSet.Spec.Template.Spec.SecurityContext == nil {
+		} else {
+			match = false
+			needsReplace = true
+			needsRollUpdate = true
+			reasons = append(reasons, "new statefulset's pod template security context in spec does not match the current one")
+		}
 	}
 	if len(c.Statefulset.Spec.VolumeClaimTemplates) != len(statefulSet.Spec.VolumeClaimTemplates) {
 		needsReplace = true
