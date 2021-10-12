@@ -370,13 +370,16 @@ func (c *Cluster) compareStatefulSetWith(statefulSet *appsv1.StatefulSet) *compa
 	var match, needsRollUpdate, needsReplace bool
 
 	// Add a whole block of diagnostics
-	if diff := deep.Equal(c.Statefulset.Annotations, statefulSet.Annotations); diff != nil {
-		reasons = append(reasons, "Annotations: ")
-		reasons = append(reasons, diff...)
-		reasons = append(reasons, string(len(statefulSet.Annotations)))
-		reasons = append(reasons, string(len(c.Statefulset.Annotations)))
-		reasons = append(reasons, c.Statefulset.Annotations["autopilot.gke.io/resource-adjustment"])
-	}
+
+	// Remove the diagnostics for the annotations as these are now working
+	//if diff := deep.Equal(c.Statefulset.Annotations, statefulSet.Annotations); diff != nil {
+	//	reasons = append(reasons, "Annotations: ")
+	//	reasons = append(reasons, diff...)
+	//	reasons = append(reasons, string(len(statefulSet.Annotations)))
+	//	reasons = append(reasons, string(len(c.Statefulset.Annotations)))
+	//	reasons = append(reasons, c.Statefulset.Annotations["autopilot.gke.io/resource-adjustment"])
+	//}
+
 	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.SecurityContext, statefulSet.Spec.Template.Spec.SecurityContext); diff != nil {
 		reasons = append(reasons, "Spec.Template.Spec.SecurityContext: ")
 		reasons = append(reasons, diff...)
