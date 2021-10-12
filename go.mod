@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/aws/aws-sdk-go v1.36.29
+	github.com/go-test/deep v1.0.7
 	github.com/golang/mock v1.4.4
 	github.com/lib/pq v1.9.0
 	github.com/motomux/pretty v0.0.0-20161209205251-b2aad2c9a95d
