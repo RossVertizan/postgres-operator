@@ -246,7 +246,7 @@ var PostgresCRDResourceValidation = apiextv1.CustomResourceValidation{
 								Properties: map[string]apiextv1.JSONSchemaProps{
 									"limits": {
 										Type:     "object",
-										Required: []string{"cpu", "memory", "ephemeral-storage"]},
+										Required: []string{"cpu", "memory", "ephemeral-storage"},
 										Properties: map[string]apiextv1.JSONSchemaProps{
 											"cpu": {
 												Type:        "string",
