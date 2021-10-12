@@ -1262,6 +1262,14 @@ var OperatorConfigCRDResourceValidation = apiextv1.CustomResourceValidation{
 								Type:    "string",
 								Pattern: "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
 							},
+							"default_ephemeral_storage_limit": {
+								Type:    "string",
+								Pattern: "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
+							},
+							"default_ephemeral_storage_request": {
+								Type:    "string",
+								Pattern: "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
+							},
 							"min_cpu_limit": {
 								Type:    "string",
 								Pattern: "^(\\d+m|\\d+(\\.\\d{1,3})?)$",
