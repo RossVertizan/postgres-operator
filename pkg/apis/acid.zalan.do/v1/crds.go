@@ -59,6 +59,13 @@ var PostgresCRDResourceColumns = []apiextv1.CustomResourceColumnDefinition{
 		JSONPath:    ".spec.resources.requests.memory",
 	},
 	{
+		Name:        "Ephemeral-Storage-Request",
+		Type:        "string",
+		Description: "Requested ephemeral storage for Postgres containers",
+		JSONPath:    ".spec.resources.requests.ephemeral-storage",
+	},
+
+	{
 		Name:     "Age",
 		Type:     "date",
 		JSONPath: ".metadata.creationTimestamp",
@@ -239,7 +246,7 @@ var PostgresCRDResourceValidation = apiextv1.CustomResourceValidation{
 								Properties: map[string]apiextv1.JSONSchemaProps{
 									"limits": {
 										Type:     "object",
-										Required: []string{"cpu", "memory"},
+										Required: []string{"cpu", "memory", "ephemeral-storage"]},
 										Properties: map[string]apiextv1.JSONSchemaProps{
 											"cpu": {
 												Type:        "string",
@@ -251,11 +258,16 @@ var PostgresCRDResourceValidation = apiextv1.CustomResourceValidation{
 												Description: "Plain integer or fixed-point integer using one of these suffixes: E, P, T, G, M, k (with or without a tailing i). Must be greater than 0",
 												Pattern:     "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
 											},
+											"ephemeral-storage": {
+												Type:        "string",
+												Description: "Plain integer or fixed-point integer using one of these suffixes: E, P, T, G, M, k (with or without a tailing i). Must be greater than 0",
+												Pattern:     "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
+											},
 										},
 									},
 									"requests": {
 										Type:     "object",
-										Required: []string{"cpu", "memory"},
+										Required: []string{"cpu", "memory", "ephemeral-storage"},
 										Properties: map[string]apiextv1.JSONSchemaProps{
 											"cpu": {
 												Type:        "string",
@@ -263,6 +275,11 @@ var PostgresCRDResourceValidation = apiextv1.CustomResourceValidation{
 												Pattern:     "^(\\d+m|\\d+(\\.\\d{1,3})?)$",
 											},
 											"memory": {
+												Type:        "string",
+												Description: "Plain integer or fixed-point integer using one of these suffixes: E, P, T, G, M, k (with or without a tailing i). Must be greater than 0",
+												Pattern:     "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
+											},
+											"ephemeral-storage": {
 												Type:        "string",
 												Description: "Plain integer or fixed-point integer using one of these suffixes: E, P, T, G, M, k (with or without a tailing i). Must be greater than 0",
 												Pattern:     "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
@@ -587,7 +604,7 @@ var PostgresCRDResourceValidation = apiextv1.CustomResourceValidation{
 						Properties: map[string]apiextv1.JSONSchemaProps{
 							"limits": {
 								Type:     "object",
-								Required: []string{"cpu", "memory"},
+								Required: []string{"cpu", "memory", "ephemeral-storage"},
 								Properties: map[string]apiextv1.JSONSchemaProps{
 									"cpu": {
 										Type:        "string",
@@ -599,11 +616,16 @@ var PostgresCRDResourceValidation = apiextv1.CustomResourceValidation{
 										Description: "Plain integer or fixed-point integer using one of these suffixes: E, P, T, G, M, k (with or without a tailing i). Must be greater than 0",
 										Pattern:     "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
 									},
+									"ephemeral-storage": {
+										Type:        "string",
+										Description: "Plain integer or fixed-point integer using one of these suffixes: E, P, T, G, M, k (with or without a tailing i). Must be greater than 0",
+										Pattern:     "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
+									},
 								},
 							},
 							"requests": {
 								Type:     "object",
-								Required: []string{"cpu", "memory"},
+								Required: []string{"cpu", "memory", "ephemeral-storage"},
 								Properties: map[string]apiextv1.JSONSchemaProps{
 									"cpu": {
 										Type:        "string",
@@ -611,6 +633,11 @@ var PostgresCRDResourceValidation = apiextv1.CustomResourceValidation{
 										Pattern:     "^(\\d+m|\\d+(\\.\\d{1,3})?)$",
 									},
 									"memory": {
+										Type:        "string",
+										Description: "Plain integer or fixed-point integer using one of these suffixes: E, P, T, G, M, k (with or without a tailing i). Must be greater than 0",
+										Pattern:     "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
+									},
+									"ephemeral-storage": {
 										Type:        "string",
 										Description: "Plain integer or fixed-point integer using one of these suffixes: E, P, T, G, M, k (with or without a tailing i). Must be greater than 0",
 										Pattern:     "^(\\d+(e\\d+)?|\\d+(\\.\\d+)?(e\\d+)?[EPTGMK]i?)$",
