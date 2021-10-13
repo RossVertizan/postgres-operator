@@ -370,26 +370,36 @@ func (c *Cluster) compareStatefulSetWith(statefulSet *appsv1.StatefulSet) *compa
 	var match, needsRollUpdate, needsReplace bool
 
 	// Add a whole block of diagnostics
+	if diff := deep.Equal(c.Statefulset.Annotations, statefulSet.Annotations); diff != nil {
+		reasons = append(reasons, "Annotations: ")
+		reasons = append(reasons, diff...)
+		reasons = append(reasons, fmt.Sprintf("Running: %v\n", reflect.ValueOf(c.Statefulset.Annotations)))
+		reasons = append(reasons, fmt.Sprintf("New: %v\n", reflect.ValueOf(statefulSet.Annotations)))
+		reasons = append(reasons, string(len(statefulSet.Annotations)))
+		reasons = append(reasons, string(len(c.Statefulset.Annotations)))
+		reasons = append(reasons, c.Statefulset.Annotations["autopilot.gke.io/resource-adjustment"])
+	}
 
-	// Remove the diagnostics for the annotations as these are now working
-	//if diff := deep.Equal(c.Statefulset.Annotations, statefulSet.Annotations); diff != nil {
-	//	reasons = append(reasons, "Annotations: ")
-	//	reasons = append(reasons, diff...)
-	//	reasons = append(reasons, string(len(statefulSet.Annotations)))
-	//	reasons = append(reasons, string(len(c.Statefulset.Annotations)))
-	//	reasons = append(reasons, c.Statefulset.Annotations["autopilot.gke.io/resource-adjustment"])
-	//}
+	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.Containers[0].Resources, statefulSet.Spec.Template.Spec.Containers[0].Resources); diff != nil {
+		reasons = append(reasons, "Spec.Template.Spec.Containers[0].Resources: ")
+		reasons = append(reasons, fmt.Sprintf("Running: %v\n", reflect.ValueOf(c.Statefulset.Spec.Template.Spec.Containers[0].Resources)))
+		reasons = append(reasons, fmt.Sprintf("New: %v\n", reflect.ValueOf(statefulSet.Spec.Template.Spec.Containers[0].Resources)))
+		reasons = append(reasons, diff...)
+	}
+
+	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.Containers[0].SecurityContext, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext); diff != nil {
+		reasons = append(reasons, "Spec.Template.Spec.Containers[0].SecurityContext: ")
+		reasons = append(reasons, fmt.Sprintf("Running: %v\n", reflect.ValueOf(c.Statefulset.Spec.Template.Spec.Containers[0].SecurityContext)))
+		reasons = append(reasons, fmt.Sprintf("New: %v\n", reflect.ValueOf(statefulSet.Spec.Template.Spec.Containers[0].SecurityContext)))
+		reasons = append(reasons, diff...)
+	}
 
 	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.SecurityContext, statefulSet.Spec.Template.Spec.SecurityContext); diff != nil {
 		reasons = append(reasons, "Spec.Template.Spec.SecurityContext: ")
-		reasons = append(reasons, diff...)
-	}
-	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.Containers[0].Resources, statefulSet.Spec.Template.Spec.Containers[0].Resources); diff != nil {
-		reasons = append(reasons, "Spec.Template.Spec.Containers[0].Resources: ")
-		reasons = append(reasons, diff...)
-	}
-	if diff := deep.Equal(c.Statefulset.Spec.Template.Spec.Containers[0].SecurityContext, statefulSet.Spec.Template.Spec.Containers[0].SecurityContext); diff != nil {
-		reasons = append(reasons, "Spec.Template.Spec.Containers[0].SecurityContext: ")
+		reasons = append(reasons, diff[0])
+		reasons = append(reasons, fmt.Sprintf("Running: %v\n", reflect.ValueOf(c.Statefulset.Spec.Template.Spec.SecurityContext)))
+		reasons = append(reasons, fmt.Sprintf("New: %v\n", reflect.ValueOf(statefulSet.Spec.Template.Spec.SecurityContext)))
+		reasons = append(reasons, fmt.Sprintf("%v\n", reflect.ValueOf(statefulSet.Spec.Template.Spec.SecurityContext.SeccompProfile).IsNil()))
 		reasons = append(reasons, diff...)
 	}
 
@@ -475,7 +485,7 @@ func (c *Cluster) compareStatefulSetWith(statefulSet *appsv1.StatefulSet) *compa
 		// RA MODIFIED
 		// Ignore the case where the new statefulSet has a nil pointer and the existing one only has an 'SeccompProfile' key.
 		// All a bit hokey, should negate the logic, rather than having empty if clause
-		if statefulSet.Spec.Template.Spec.SecurityContext == nil {
+		if reflect.ValueOf(statefulSet.Spec.Template.Spec.SecurityContext.SeccompProfile).IsNil() {
 		} else {
 			match = false
 			needsReplace = true
@@ -569,7 +579,7 @@ func (c *Cluster) compareContainers(description string, setA, setB []v1.Containe
 		newCheck("new statefulset %s's %s (index %d) environment sources do not match the current one",
 			func(a, b v1.Container) bool { return !reflect.DeepEqual(a.EnvFrom, b.EnvFrom) }),
 		newCheck("new statefulset %s's %s (index %d) security context does not match the current one",
-			func(a, b v1.Container) bool { return !reflect.DeepEqual(a.SecurityContext, b.SecurityContext) }),
+			func(a, b v1.Container) bool { return !compareSecurityContexts(a.SecurityContext, b.SecurityContext) }),
 		newCheck("new statefulset %s's %s (index %d) volume mounts do not match the current one",
 			func(a, b v1.Container) bool { return !reflect.DeepEqual(a.VolumeMounts, b.VolumeMounts) }),
 	}
@@ -588,8 +598,15 @@ func (c *Cluster) compareContainers(description string, setA, setB []v1.Containe
 			}
 		}
 	}
-
 	return needsRollUpdate, reasons
+}
+
+func compareSecurityContexts(a *v1.SecurityContext, b *v1.SecurityContext) bool {
+	if reflect.ValueOf(b.Capabilities).IsNil() {
+		return true
+	} else {
+		return reflect.DeepEqual(a, b)
+	}
 }
 
 func compareResources(a *v1.ResourceRequirements, b *v1.ResourceRequirements) bool {
@@ -609,17 +626,21 @@ func compareResourcesAssumeFirstNotNil(a *v1.ResourceRequirements, b *v1.Resourc
 		return len(a.Requests) == 0
 	}
 	for k, v := range a.Requests {
-		if (&v).Cmp(b.Requests[k]) != 0 {
-			return false
+		// RA MODIFIED - check if key is ephemeral storage and if it is then ignore it.
+		if k != "ephemeral-storage" {
+			if (&v).Cmp(b.Requests[k]) != 0 {
+				return false
+			}
 		}
 	}
 	for k, v := range a.Limits {
-		if (&v).Cmp(b.Limits[k]) != 0 {
-			return false
+		if k != "ephemeral-storage" {
+			if (&v).Cmp(b.Limits[k]) != 0 {
+				return false
+			}
 		}
 	}
 	return true
-
 }
 
 func compareEnv(a, b []v1.EnvVar) bool {
